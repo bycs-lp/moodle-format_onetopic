@@ -127,10 +127,9 @@
 .format-onetopic .onelinetabs .tabs-wrapper {
     position: relative;
     max-width: 100%;
-    height: 40px;
     margin: 0 auto;
-    overflow-x: hidden;
-    overflow-y: hidden;
+    overflow: hidden;
+    -webkit-transform: translateZ(0);
 }
 
 .format-onetopic .onelinetabs .onetopic-tab-body {
@@ -143,13 +142,18 @@
 }
 
 .format-onetopic .onelinetabs .tabs-wrapper .nav.nav-tabs {
-    height: 60px;
     box-sizing: border-box;
     white-space: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
     flex-wrap: nowrap;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+    -webkit-transform: translateZ(0);
+}
+
+.format-onetopic .onelinetabs .tabs-wrapper .nav.nav-tabs::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
 }
 
 .format-onetopic .onelinetabs .tabs-wrapper .scroll-arrow {
@@ -192,14 +196,6 @@
 }
 
 /* Fixing specific themes */
-.format-onetopic.theme_adaptable .onelinetabs .tabs-wrapper {
-    height: 50px;
-}
-
-.format-onetopic.theme_adaptable .onelinetabs .tabs-wrapper .nav.nav-tabs {
-    height: 65px;
-}
-
 .format-onetopic.theme_adaptable .onelinetabs .tabs-wrapper .nav-item {
     margin-top: 0;
 }
