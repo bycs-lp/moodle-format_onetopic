@@ -398,6 +398,10 @@ class header implements \core\output\renderable, \core\output\templatable {
                                     $value = $value . 'px';
                                 }
 
+                                // The CSS is printed inside a style element, so no markup delimiters are allowed.
+                                $key = str_replace(['<', '>'], '', $key);
+                                $value = str_replace(['<', '>'], '', $value);
+
                                 // Capture background-color from any type that has it.
                                 if ($key === 'background-color') {
                                     $activebackgroundcolor = $value;
@@ -469,8 +473,7 @@ class header implements \core\output\renderable, \core\output\templatable {
                             $onecss .= $childrule;
                         }
 
-                        // Clean the CSS for html tags.
-                        $csstabstyles .= preg_replace('/<[^>]*>/', '', $onecss);
+                        $csstabstyles .= $onecss;
                     }
                 }
 
