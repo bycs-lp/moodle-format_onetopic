@@ -390,6 +390,12 @@ class header implements \core\output\renderable, \core\output\templatable {
                             // Store background-color for active tabs to use in border CSS.
                             $activebackgroundcolor = null;
                             foreach ($styles as $key => $value) {
+                                // Only plain property names and scalar values are allowed in the generated CSS.
+                                $validname = preg_match('/^[-a-zA-Z]+$/', (string)$key);
+                                if (!$validname || !is_scalar($value)) {
+                                    continue;
+                                }
+
                                 // If exist a unit for the rule, apply it.
                                 if (isset($units[$key])) {
                                     $value = $value . $units[$key];
@@ -397,6 +403,9 @@ class header implements \core\output\renderable, \core\output\templatable {
                                     // If the rule need units, apply px by default.
                                     $value = $value . 'px';
                                 }
+
+                                // The CSS is printed inside a style element, so no markup or block delimiters are allowed.
+                                $value = str_replace(['<', '>', '{', '}'], '', $value);
 
                                 // Capture background-color from any type that has it.
                                 if ($key === 'background-color') {
@@ -469,8 +478,7 @@ class header implements \core\output\renderable, \core\output\templatable {
                             $onecss .= $childrule;
                         }
 
-                        // Clean the CSS for html tags.
-                        $csstabstyles .= preg_replace('/<[^>]*>/', '', $onecss);
+                        $csstabstyles .= $onecss;
                     }
                 }
 
